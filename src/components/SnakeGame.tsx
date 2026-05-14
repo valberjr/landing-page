@@ -8,6 +8,7 @@ const BEST_KEY = 'snake-best';
 
 type Dir = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 type Pos = { x: number; y: number };
+type Phase = 'idle' | 'playing' | 'gameOver';
 
 const OPP: Record<Dir, Dir> = {
   UP: 'DOWN',
@@ -81,14 +82,14 @@ export default function SnakeGame() {
   const [mounted, setMounted] = useState(false);
   const [snake, setSnake] = useState<Pos[]>(() => initSnake());
   const [food, setFood] = useState<Pos>({ x: 15, y: 10 });
-  const [gameOver, setGameOver] = useState(false);
+  const [gamePhase, setGamePhase] = useState<Phase>('idle');
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(0);
 
   const dirRef = useRef<Dir>('RIGHT');
   const snakeRef = useRef(snake);
   const foodRef = useRef(food);
-  const gameOverRef = useRef(false);
+  const phaseRef = useRef<Phase>('idle');
   const scoreRef = useRef(0);
 
   useEffect(() => {
@@ -103,23 +104,28 @@ export default function SnakeGame() {
     }
   }, []);
 
+  const start = useCallback(() => {
+    phaseRef.current = 'playing';
+    setGamePhase('playing');
+  }, []);
+
   const restart = useCallback(() => {
     const s = initSnake();
     const f = randomFood(s);
     snakeRef.current = s;
     foodRef.current = f;
     dirRef.current = 'RIGHT';
-    gameOverRef.current = false;
+    phaseRef.current = 'idle';
     scoreRef.current = 0;
     setSnake(s);
     setFood(f);
-    setGameOver(false);
+    setGamePhase('idle');
     setScore(0);
   }, []);
 
   const tickRef = useRef<() => void>(() => {});
   tickRef.current = () => {
-    if (gameOverRef.current) return;
+    if (phaseRef.current !== 'playing') return;
 
     const s = snakeRef.current;
     const head = s[s.length - 1];
@@ -132,8 +138,8 @@ export default function SnakeGame() {
       : { x: head.x + 1, y: head.y };
 
     if (nh.x < 0 || nh.x >= GRID || nh.y < 0 || nh.y >= GRID) {
-      gameOverRef.current = true;
-      setGameOver(true);
+      phaseRef.current = 'gameOver';
+      setGamePhase('gameOver');
       const prev = Number(localStorage.getItem(BEST_KEY)) || 0;
       const next = Math.max(prev, scoreRef.current);
       if (next > prev) {
@@ -144,8 +150,8 @@ export default function SnakeGame() {
     }
 
     if (s.some((p) => p.x === nh.x && p.y === nh.y)) {
-      gameOverRef.current = true;
-      setGameOver(true);
+      phaseRef.current = 'gameOver';
+      setGamePhase('gameOver');
       const prev = Number(localStorage.getItem(BEST_KEY)) || 0;
       const next = Math.max(prev, scoreRef.current);
       if (next > prev) {
@@ -172,13 +178,14 @@ export default function SnakeGame() {
   };
 
   useEffect(() => {
-    if (gameOver) return;
+    if (gamePhase !== 'playing') return;
     const id = setInterval(() => tickRef.current(), TICK);
     return () => clearInterval(id);
-  }, [gameOver]);
+  }, [gamePhase]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (phaseRef.current !== 'playing') return;
       switch (e.key) {
         case 'ArrowUp':
           e.preventDefault();
@@ -240,24 +247,37 @@ export default function SnakeGame() {
             />
           ))}
         </div>
-        {gameOver && (
-          <div
-            className="absolute inset-0 flex flex-col items-center justify-center"
-            style={{ backgroundColor: 'var(--background)' }}
-          >
-            <p className="font-mono text-sm tracking-[0.2em] mb-5">
-              GAME OVER
-            </p>
+
+        <div
+          className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-300 ${
+            gamePhase !== 'playing' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          style={{ backgroundColor: 'var(--background)' }}
+        >
+          {gamePhase === 'idle' && (
             <button
-              onClick={restart}
-              className="font-mono text-xs border border-current rounded-md px-3 py-1.5 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
+              onClick={start}
+              className="font-mono text-xs border border-current rounded-md px-4 py-2 opacity-60 hover:opacity-100 transition-opacity cursor-pointer tracking-[0.1em]"
             >
-              restart
+              START
             </button>
-          </div>
-        )}
+          )}
+          {gamePhase === 'gameOver' && (
+            <>
+              <p className="font-mono text-sm tracking-[0.2em] mb-5">
+                GAME OVER
+              </p>
+              <button
+                onClick={restart}
+                className="font-mono text-xs border border-current rounded-md px-3 py-1.5 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
+              >
+                RESTART
+              </button>
+            </>
+          )}
+        </div>
       </div>
-      <DPad onDir={changeDir} />
+      <DPad onDir={gamePhase === 'playing' ? changeDir : () => {}} />
       <p className="font-mono text-[10px] opacity-25 tracking-[0.15em] mt-4">
         USE THE ARROW KEYS TO PLAY
       </p>
