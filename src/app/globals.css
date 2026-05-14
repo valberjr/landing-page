@@ -1,15 +1,17 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #f4f4f5;
-  --foreground: #18181b;
-  --accent: #22c55e;
+  --background: #f5f3ef;
+  --foreground: #1c1c1e;
+  --accent: #3a7d44;
+  --grid-line: rgba(28, 28, 30, 0.04);
 }
 
 .dark {
-  --background: #000000;
-  --foreground: #4ade80;
-  --accent: #22c55e;
+  --background: #050505;
+  --foreground: #00ff88;
+  --accent: #00ff88;
+  --grid-line: rgba(0, 255, 136, 0.06);
 }
 
 html,
@@ -17,4 +19,17 @@ body {
   background: var(--background);
   color: var(--foreground);
   min-height: 100vh;
+  font-family: monospace;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--background);
+}
+
+.game-grid {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 16px 16px;
 }
