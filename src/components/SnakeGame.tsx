@@ -57,8 +57,8 @@ function ScoreBoard({ score, best, mounted }: { score: number; best: number; mou
   );
 }
 
-function DPad({ onDir }: { onDir: (d: Dir) => void }) {
-  const Btn = ({ d, label }: { d: Dir; label: string }) => (
+function DPadBtn({ d, label, onDir }: { d: Dir; label: string; onDir: (d: Dir) => void }) {
+  return (
     <button
       onClick={() => onDir(d)}
       className="w-7 h-7 border border-current rounded flex items-center justify-center text-xs opacity-40 hover:opacity-80 transition-opacity cursor-pointer"
@@ -66,14 +66,17 @@ function DPad({ onDir }: { onDir: (d: Dir) => void }) {
       {label}
     </button>
   );
+}
+
+function DPad({ onDir }: { onDir: (d: Dir) => void }) {
   return (
     <div className="grid grid-cols-3 gap-1 mt-6">
       <div />
-      <Btn d="UP" label="↑" />
+      <DPadBtn d="UP" label="↑" onDir={onDir} />
       <div />
-      <Btn d="LEFT" label="←" />
-      <Btn d="DOWN" label="↓" />
-      <Btn d="RIGHT" label="→" />
+      <DPadBtn d="LEFT" label="←" onDir={onDir} />
+      <DPadBtn d="DOWN" label="↓" onDir={onDir} />
+      <DPadBtn d="RIGHT" label="→" onDir={onDir} />
     </div>
   );
 }
@@ -93,6 +96,7 @@ export default function SnakeGame() {
   const scoreRef = useRef(0);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     setBest(Number(localStorage.getItem(BEST_KEY)) || 0);
     setFood(randomFood(snakeRef.current));
@@ -124,58 +128,61 @@ export default function SnakeGame() {
   }, []);
 
   const tickRef = useRef<() => void>(() => {});
-  tickRef.current = () => {
-    if (phaseRef.current !== 'playing') return;
 
-    const s = snakeRef.current;
-    const head = s[s.length - 1];
-    const d = dirRef.current;
+  useEffect(() => {
+    tickRef.current = () => {
+      if (phaseRef.current !== 'playing') return;
 
-    const nh: Pos =
-      d === 'UP' ? { x: head.x, y: head.y - 1 }
-      : d === 'DOWN' ? { x: head.x, y: head.y + 1 }
-      : d === 'LEFT' ? { x: head.x - 1, y: head.y }
-      : { x: head.x + 1, y: head.y };
+      const s = snakeRef.current;
+      const head = s[s.length - 1];
+      const d = dirRef.current;
 
-    if (nh.x < 0 || nh.x >= GRID || nh.y < 0 || nh.y >= GRID) {
-      phaseRef.current = 'gameOver';
-      setGamePhase('gameOver');
-      const prev = Number(localStorage.getItem(BEST_KEY)) || 0;
-      const next = Math.max(prev, scoreRef.current);
-      if (next > prev) {
-        localStorage.setItem(BEST_KEY, String(next));
-        setBest(next);
+      const nh: Pos =
+        d === 'UP' ? { x: head.x, y: head.y - 1 }
+        : d === 'DOWN' ? { x: head.x, y: head.y + 1 }
+        : d === 'LEFT' ? { x: head.x - 1, y: head.y }
+        : { x: head.x + 1, y: head.y };
+
+      if (nh.x < 0 || nh.x >= GRID || nh.y < 0 || nh.y >= GRID) {
+        phaseRef.current = 'gameOver';
+        setGamePhase('gameOver');
+        const prev = Number(localStorage.getItem(BEST_KEY)) || 0;
+        const next = Math.max(prev, scoreRef.current);
+        if (next > prev) {
+          localStorage.setItem(BEST_KEY, String(next));
+          setBest(next);
+        }
+        return;
       }
-      return;
-    }
 
-    if (s.some((p) => p.x === nh.x && p.y === nh.y)) {
-      phaseRef.current = 'gameOver';
-      setGamePhase('gameOver');
-      const prev = Number(localStorage.getItem(BEST_KEY)) || 0;
-      const next = Math.max(prev, scoreRef.current);
-      if (next > prev) {
-        localStorage.setItem(BEST_KEY, String(next));
-        setBest(next);
+      if (s.some((p) => p.x === nh.x && p.y === nh.y)) {
+        phaseRef.current = 'gameOver';
+        setGamePhase('gameOver');
+        const prev = Number(localStorage.getItem(BEST_KEY)) || 0;
+        const next = Math.max(prev, scoreRef.current);
+        if (next > prev) {
+          localStorage.setItem(BEST_KEY, String(next));
+          setBest(next);
+        }
+        return;
       }
-      return;
-    }
 
-    const ns = [...s, nh];
+      const ns = [...s, nh];
 
-    if (nh.x === foodRef.current.x && nh.y === foodRef.current.y) {
-      scoreRef.current += 1;
-      setScore(scoreRef.current);
-      const nf = randomFood(ns);
-      foodRef.current = nf;
-      setFood(nf);
-    } else {
-      ns.shift();
-    }
+      if (nh.x === foodRef.current.x && nh.y === foodRef.current.y) {
+        scoreRef.current += 1;
+        setScore(scoreRef.current);
+        const nf = randomFood(ns);
+        foodRef.current = nf;
+        setFood(nf);
+      } else {
+        ns.shift();
+      }
 
-    snakeRef.current = ns;
-    setSnake(ns);
-  };
+      snakeRef.current = ns;
+      setSnake(ns);
+    };
+  }, []);
 
   useEffect(() => {
     if (gamePhase !== 'playing') return;
